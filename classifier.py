@@ -1,7 +1,9 @@
 import xml.etree.ElementTree as ET
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.cross_validation import train_test_split
 import pymorphy2
+
+from sklearn import metrics
+from sklearn.linear_model import LogisticRegression
 
 
 BANK_TRAIN_BASE = 'data/bank_train_2016.xml'
@@ -10,6 +12,7 @@ TKK_TRAIN_BASE = 'data/tkk_train_2016.xml'
 TKK_TEST_BASE = 'data/tkk_test_etalon.xml'
 
 BANK_LIST = ['rshb', 'alfabank', 'vtb', 'bankmoskvy', 'raiffeisen', 'sberbank', 'uralsib', 'gazprom']
+TKK_LIST = ['beeline', 'mts', 'megafon', 'tele2', 'rostelecom', 'komstar', 'skylink']
 
 
 def load_data(file, names):
@@ -21,29 +24,47 @@ def load_data(file, names):
 
     for table in database.iter('table'):
         train_set.append(table.find('./*[@name="text"]').text)
-        answer = set()
+        answer = 0
         for item in names:
-            value = table.find('./*[@name="{}"]'.format(item)).text
-            if value != "NULL":
-                answer.add(value)
-        answer_set.append(list(answer))
+            if answer == 0:
+                value = table.find('./*[@name="{}"]'.format(item)).text
+                if value == '-1':
+                    answer = 'negative'
+                    break
+                elif value == '0':
+                    answer = 'neutral'
+                    break
+                elif value == '1':
+                    answer = 'positive'
+                    break
+        answer_set.append(answer)
     return train_set, answer_set
 
 
-def f_tokenizer(s):
-    morph = pymorphy2.MorphAnalyzer()
-    if type(s) == unicode:
-        t = s.split(' ')
-    else:
-        t = s
-    f = []
-    for j in t:
-        m = morph.parse(j.replace('.',''))
-        if len(m) != 0:
-            wrd = m[0]
-            if wrd.tag.POS not in ('NUMR','PREP','CONJ','PRCL','INTJ'):
-                f.append(wrd.normal_form)
-    return f
+def train_and_test(train_base, test_base, items_list):
+    X, y = load_data(train_base, items_list)
+    vectorizer = CountVectorizer()
+    X = vectorizer.fit_transform(X)
+    model = LogisticRegression()
+    model.fit(X, y)
+    # make predictions
+    expected = y
+    predicted = model.predict(X)
+    # summarize the fit of the model
+    print('Results of training:')
+    print(metrics.classification_report(expected, predicted))
+    # print(metrics.confusion_matrix(expected, predicted))
+
+    X_test, y_test = load_data(test_base, items_list)
+    X_test = vectorizer.transform(X_test)
+    predicted = model.predict(X_test)
+    test = model.predict(X_test)
+    print('Results of testing:')
+    print(metrics.classification_report(y_test, predicted))
+    # print(metrics.confusion_matrix(y_test, predicted))
+
 
 if __name__ == '__main__':
-    pass
+    # uncomment the line you need
+    train_and_test(BANK_TRAIN_BASE, BANK_TEST_BASE, BANK_LIST)
+    # train_and_test(TKK_TRAIN_BASE, TKK_TEST_BASE, TKK_LIST)
