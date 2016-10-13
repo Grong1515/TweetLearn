@@ -1,3 +1,5 @@
+from random import shuffle
+
 import xml.etree.ElementTree as ET
 from sklearn.feature_extraction.text import CountVectorizer
 import pymorphy2
@@ -38,7 +40,18 @@ def load_data(file, names):
                     answer = 'positive'
                     break
         answer_set.append(answer)
-    return train_set, answer_set
+
+    mix = list(range(len(train_set)))
+    shuffle(mix)
+
+    return shuffle_set(train_set, mix), shuffle_set(answer_set, mix)
+
+
+def shuffle_set(set, mix):
+    response = list(range(len(mix)))
+    for i in list(range(len(mix))):
+        response[mix[i]] = set[i]
+    return response
 
 
 def train_and_test(train_base, test_base, items_list):
@@ -58,7 +71,6 @@ def train_and_test(train_base, test_base, items_list):
     X_test, y_test = load_data(test_base, items_list)
     X_test = vectorizer.transform(X_test)
     predicted = model.predict(X_test)
-    test = model.predict(X_test)
     print('Results of testing:')
     print(metrics.classification_report(y_test, predicted))
     # print(metrics.confusion_matrix(y_test, predicted))
