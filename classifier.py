@@ -1,7 +1,10 @@
 from random import shuffle
+import numpy as np
 
 import xml.etree.ElementTree as ET
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_selection import RFECV
+from sklearn.model_selection import cross_val_score, cross_val_predict, KFold
 import pymorphy2
 
 from sklearn import metrics
@@ -44,7 +47,7 @@ def load_data(file, names):
     mix = list(range(len(train_set)))
     shuffle(mix)
 
-    return shuffle_set(train_set, mix), shuffle_set(answer_set, mix)
+    return np.array(shuffle_set(train_set, mix)), np.array(shuffle_set(answer_set, mix))
 
 
 def shuffle_set(set, mix):
@@ -59,11 +62,22 @@ def train_and_test(train_base, test_base, items_list):
     vectorizer = CountVectorizer()
     X = vectorizer.fit_transform(X)
     model = LogisticRegression()
-    model.fit(X, y)
+    kf = KFold(n_splits=10)
+    print('CROSS VALIDATION')
+    i = 1
+    for train, test in kf.split(X):
+        model.fit(X[train], y[train])
+        prediction = model.predict(X[test])
+        print('Number ot iteration: ' + str(i))
+        print(metrics.classification_report(y[test], prediction))
+        i += 1
+
+    # print(cross_val_score(model, X, y))
     # make predictions
     expected = y
     predicted = model.predict(X)
     # summarize the fit of the model
+    print('-'*60)
     print('Results of training:')
     print(metrics.classification_report(expected, predicted))
     # print(metrics.confusion_matrix(expected, predicted))
@@ -78,5 +92,5 @@ def train_and_test(train_base, test_base, items_list):
 
 if __name__ == '__main__':
     # uncomment the line you need
-    train_and_test(BANK_TRAIN_BASE, BANK_TEST_BASE, BANK_LIST)
-    # train_and_test(TKK_TRAIN_BASE, TKK_TEST_BASE, TKK_LIST)
+    # train_and_test(BANK_TRAIN_BASE, BANK_TEST_BASE, BANK_LIST)
+    train_and_test(TKK_TRAIN_BASE, TKK_TEST_BASE, TKK_LIST)
